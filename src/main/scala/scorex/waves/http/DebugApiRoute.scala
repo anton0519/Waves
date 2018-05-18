@@ -125,8 +125,8 @@ case class DebugApiRoute(ws: WavesSettings,
       )
     ))
   @ApiResponses(Array(new ApiResponse(code = 200, message = "Json portfolio")))
-  def portfolios: Route = path("portfolios" / Segment) { (rawAddress) =>
-    (get & withAuth & parameter('considerUnspent.as[Boolean])) { (considerUnspent) =>
+  def portfolios: Route = path("portfolios" / Segment) { rawAddress =>
+    (get & withAuth & parameter('considerUnspent.as[Boolean])) { considerUnspent =>
       Address.fromString(rawAddress) match {
         case Left(_) => complete(InvalidAddress)
         case Right(address) =>
@@ -140,7 +140,7 @@ case class DebugApiRoute(ws: WavesSettings,
   @ApiOperation(value = "State", notes = "Get current state", httpMethod = "GET")
   @ApiResponses(Array(new ApiResponse(code = 200, message = "Json state")))
   def state: Route = (path("state") & get & withAuth) {
-    complete(ng.wavesDistribution(ng.height).map { case (a, b) => a.stringRepr -> b })
+    complete(ng.wavesDistribution.map { case (a, b) => a.stringRepr -> b })
   }
 
   @Path("/stateWaves/{height}")
@@ -150,7 +150,7 @@ case class DebugApiRoute(ws: WavesSettings,
       new ApiImplicitParam(name = "height", value = "height", required = true, dataType = "integer", paramType = "path")
     ))
   def stateWaves: Route = (path("stateWaves" / IntNumber) & get & withAuth) { height =>
-    complete(ng.wavesDistribution(height).map { case (a, b) => a.stringRepr -> b })
+    complete(ng.wavesDistribution.map { case (a, b) => a.stringRepr -> b })
   }
 
   private def rollbackToBlock(blockId: ByteStr, returnTransactionsToUtx: Boolean): Future[ToResponseMarshallable] = {

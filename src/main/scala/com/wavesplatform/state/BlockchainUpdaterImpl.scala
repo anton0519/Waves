@@ -494,22 +494,11 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
         } yield address -> f(address)
       }
 
-  override def assetDistribution(height: Int, assetId: AssetId): Map[Address, Long] = ngState.fold(blockchain.assetDistribution(height, assetId)) {
-    ng =>
-      val innerDistribution = blockchain.assetDistribution(height, assetId)
-      if (height < this.height) innerDistribution
-      else {
-        innerDistribution ++ changedBalances(_.assets.getOrElse(assetId, 0L) != 0, portfolio(_).assets.getOrElse(assetId, 0L))
-      }
-  }
+  override def assetDistribution(assetId: AssetId): Map[Address, Long] =
+    blockchain.assetDistribution(assetId) ++ changedBalances(_.assets.getOrElse(assetId, 0L) != 0, portfolio(_).assets.getOrElse(assetId, 0L))
 
-  override def wavesDistribution(height: Int): Map[Address, Long] = ngState.fold(blockchain.wavesDistribution(height)) { ng =>
-    val innerDistribution = blockchain.wavesDistribution(height)
-    if (height < this.height) innerDistribution
-    else {
-      innerDistribution ++ changedBalances(_.balance != 0, portfolio(_).balance)
-    }
-  }
+  override def wavesDistribution: Map[Address, Long] =
+    blockchain.wavesDistribution ++ changedBalances(_.balance != 0, portfolio(_).balance)
 
   override def allActiveLeases: Set[LeaseTransaction] = ngState.fold(blockchain.allActiveLeases) { ng =>
     val (active, canceled) = ng.bestLiquidDiff.leaseState.partition(_._2)

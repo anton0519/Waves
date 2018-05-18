@@ -105,7 +105,7 @@ abstract class HandshakeHandler(localHandshake: Handshake,
               ctx.channel().closeFuture().addListener { f: ChannelFuture =>
                 peerConnections.remove(key, f.channel())
                 establishedConnections.remove(f.channel())
-                log.trace(s"${id(f.channel())} was closed")
+                log.trace(s"${id(f.channel())} was closed. done=${f.isDone}, cancelled=${f.isCancelled}, success=${f.isSuccess}, e=${f.cause()}")
               }
 
               connectionNegotiated(ctx)
