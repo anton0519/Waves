@@ -83,6 +83,15 @@ object Parser {
     else PART.VALID(x)
   }
 
+  private val invalid: P[INVALID] = P(AnyChars(1).! ~ expr.?).map {
+    case (xs, next) => foldInvalid(xs, next)
+  }
+
+  private def foldInvalid(xs: String, next: Option[EXPR]): INVALID = next match {
+    case Some(INVALID(nextXs, nextNext)) => foldInvalid(xs + nextXs, nextNext)
+    case x                               => INVALID(xs, x)
+  }
+
   private val numberP: P[CONST_LONG] = P(CharIn("+-").rep(max = 1) ~ digit.repX(min = 1)).!.map(t => CONST_LONG(t.toLong))
   private val trueP: P[TRUE.type]    = P("true").map(_ => TRUE)
   private val falseP: P[FALSE.type]  = P("false").map(_ => FALSE)
@@ -102,17 +111,31 @@ object Parser {
   private case class ListIndex(index: EXPR)     extends Accessor
 
   private val typesP: P[Seq[Option[PART[String]]]] = varName.?.rep(sep = "|").log("typesP")
-  private val matchCaseP: P[MATCH_CASE] = P("case" ~/ (varName | "_".!.map(PART.VALID(_))).? ~ (":" ~ typesP).? ~ "=>" ~/ expr2.?)
-    .map {
-      case (v, types, e) =>
-        println(s"$v, $types, $e")
-        MATCH_CASE(
-          newVarName = v.orElse(Some(PART.INVALID("", "expected variable name"))),
-          types = types.getOrElse(Seq(Some(PART.INVALID("", "expected types")))).map(_.getOrElse(PART.INVALID("", "expected types"))),
-          expr = e.getOrElse(INVALID("expected expression"))
-        )
-    }
-    .log("matchCaseP")
+  private val matchCaseP: P[MATCH_CASE] =
+    P(
+      "case" ~/ (
+        ((varName | "_".!.map(PART.VALID(_))) ~ ":" ~ typesP.?).log("vars") |
+          (!"=>" ~~ AnyChars(1).!)
+            .log("inner")
+            .repX
+            .map(_.mkString)
+            .map { x =>
+              (
+                PART.INVALID(x, "invalid syntax, should be: `case varName: Type => expr` or `case _ => expr`"),
+                Some(Seq.empty[Option[PART[String]]])
+              )
+            }
+            .log("invalid vars")
+      ) ~ "=>" ~/ expr2.?
+    ).map {
+        case (v, types, e) =>
+          MATCH_CASE(
+            newVarName = Some(v),
+            types = types.getOrElse(Seq(Some(PART.INVALID("", "expected types")))).map(_.getOrElse(PART.INVALID("", "expected types"))),
+            expr = e.getOrElse(INVALID("expected expression"))
+          )
+      }
+      .log("matchCaseP")
   private lazy val matchP: P[EXPR] = P("match" ~/ expr ~ "{" ~ NoCut(matchCaseP).rep ~ "}")
     .map {
       case (_, Nil)   => INVALID("pattern matching requires case branches")
@@ -148,15 +171,6 @@ object Parser {
       }
 
   private val block: P[EXPR] = P(letP ~ expr).map(Function.tupled(BLOCK))
-
-  private val invalid: P[INVALID] = P(AnyChars(1).! ~ expr.?).map {
-    case (xs, next) => foldInvalid(xs, next)
-  }
-
-  private def foldInvalid(xs: String, next: Option[EXPR]): INVALID = next match {
-    case Some(INVALID(nextXs, nextNext)) => foldInvalid(xs + nextXs, nextNext)
-    case x                               => INVALID(xs, x)
-  }
 
   private val atom      = P(ifP | NoCut(matchP) | byteVectorP | stringP | numberP | trueP | falseP | block | maybeAccessP | invalid)
   private lazy val expr = P(binaryOp(opsByPriority) | atom)

@@ -384,42 +384,65 @@ class ParserTest extends PropSpec with PropertyChecks with Matchers with ScriptG
   property("pattern matching with invalid case - no variable, type and expr are defined") {
     parseOne("match tx { case => } ") shouldBe MATCH(
       REF("tx"),
-      List(MATCH_CASE(Some(PART.INVALID("", "expected variable name")), List(PART.INVALID("", "expected types")), INVALID("expected expression")))
+      List(
+        MATCH_CASE(
+          Some(PART.INVALID("", "invalid syntax, should be: `case varName: Type => expr` or `case _ => expr`")),
+          List.empty,
+          INVALID("expected expression")
+        )
+      )
     )
   }
 
   property("pattern matching with invalid case - no variable and type are defined") {
     parseOne("match tx { case => 1} ") shouldBe MATCH(
       REF("tx"),
-      List(MATCH_CASE(Some(PART.INVALID("", "expected variable name")), List(PART.INVALID("", "expected types")), CONST_LONG(1)))
+      List(
+        MATCH_CASE(
+          Some(PART.INVALID("", "invalid syntax, should be: `case varName: Type => expr` or `case _ => expr`")),
+          List.empty,
+          CONST_LONG(1)
+        )
+      )
     )
   }
 
   property("pattern matching with invalid case - no type and expr are defined") {
     parseOne("match tx { case TypeA => } ") shouldBe MATCH(
       REF("tx"),
-      List(MATCH_CASE(Some(PART.VALID("TypeA")), List(PART.INVALID("", "expected types")), INVALID("expected expression")))
+      List(
+        MATCH_CASE(
+          Some(PART.INVALID("TypeA ", "invalid syntax, should be: `case varName: Type => expr` or `case _ => expr`")),
+          Seq.empty,
+          INVALID("expected expression")
+        )
+      )
     )
   }
 
-//  property("pattern matching with invalid case - no variable is defined") {
-//    parseOne("match tx { case TypeA => } ") shouldBe MATCH(
-//      REF("tx"),
-//      List(MATCH_CASE(Some(PART.VALID("TypeA")), List(PART.INVALID("", "expected types")), INVALID("expected expression")))
-//    )
-//  }
-
-  property("pattern matching with invalid case - no variable is defined") {
-    parseOne("match tx { case  :TypeA => 1 } ") shouldBe MATCH(
+  property("pattern matching with invalid case - expression in variable definition") {
+    parseOne("match tx { case 1 + 1 => 1 } ") shouldBe MATCH(
       REF("tx"),
-      List(MATCH_CASE(Some(PART.INVALID("", "expected variable name")), List(PART.VALID("TypeA")), CONST_LONG(1)))
+      List(
+        MATCH_CASE(
+          Some(PART.INVALID("1 + 1 ", "invalid syntax, should be: `case varName: Type => expr` or `case _ => expr`")),
+          List.empty,
+          CONST_LONG(1)
+        )
+      )
     )
   }
 
   property("pattern matching with invalid case - no type is defined") {
-    parseOne("match tx { case  x => 1 } ") shouldBe MATCH(
+    parseOne("match tx { case x => 1 } ") shouldBe MATCH(
       REF("tx"),
-      List(MATCH_CASE(Some(PART.VALID("x")), List(PART.INVALID("", "expected types")), CONST_LONG(1)))
+      List(
+        MATCH_CASE(
+          Some(PART.INVALID("x ", "invalid syntax, should be: `case varName: Type => expr` or `case _ => expr`")),
+          List.empty,
+          CONST_LONG(1)
+        )
+      )
     )
   }
 
@@ -431,18 +454,9 @@ class ParserTest extends PropSpec with PropertyChecks with Matchers with ScriptG
   }
 
   property("pattern matching with default case - no type is defined, multiple separators") {
-    parseOne("match tx { case  _: | => 1 } ") shouldBe MATCH(
+    parseOne("match tx { case  _: |||| => 1 } ") shouldBe MATCH(
       REF("tx"),
-      List(MATCH_CASE(Some(PART.VALID("_")), Seq(PART.INVALID("", "expected types"), PART.INVALID("", "expected types")), CONST_LONG(1)))
+      List(MATCH_CASE(Some(PART.VALID("_")), (1 to 5).map(_ => PART.INVALID("", "expected types")), CONST_LONG(1)))
     )
-  }
-
-  parseOne("match tx { case  _: |||| => 1 } ") shouldBe MATCH(
-    REF("tx"),
-    List(MATCH_CASE(Some(PART.VALID("_")), (1 to 5).map(_ => PART.INVALID("", "expected types")), CONST_LONG(1)))
-  )
-
-  property("failure to match") {
-    parseOne("match tx { case TypeA => 1 } ") shouldBe false
   }
 }
