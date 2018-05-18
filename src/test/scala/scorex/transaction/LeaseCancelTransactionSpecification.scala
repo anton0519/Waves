@@ -5,7 +5,7 @@ import com.wavesplatform.state.ByteStr
 import org.scalatest._
 import org.scalatest.prop.PropertyChecks
 import play.api.libs.json.Json
-import scorex.account.{Address, PublicKeyAccount}
+import scorex.account.PublicKeyAccount
 import scorex.crypto.encode.Base58
 import scorex.transaction.lease.{LeaseCancelTransaction, LeaseCancelTransactionV1, LeaseCancelTransactionV2}
 
