@@ -36,7 +36,7 @@ object BaseTargetChecker {
         val address   = account.toAddress
         val balance   = bu.balance(address, None)
         val consensus = genesisBlock.consensusData
-        val timeDelay = pos.validBlockDelay(consensus.generationSignature.arr, account.publicKey, consensus.baseTarget, balance)
+        val timeDelay = pos.validateBlockDelay(consensus.generationSignature.arr, account.publicKey, consensus.baseTarget, balance)
 
         f"$address: ${timeDelay * 1e-3}%10.3f s"
     }
